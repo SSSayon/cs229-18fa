@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import Tuple
 
 
 def add_intercept(x):
@@ -18,12 +19,12 @@ def add_intercept(x):
     return new_x
 
 
-def load_dataset(csv_path, label_col='y', add_intercept=False):
+def load_dataset(csv_path, label_col='y', add_intercept=False) -> Tuple[np.ndarray, np.ndarray]:
     """Load dataset from a CSV file.
 
     Args:
          csv_path: Path to CSV file containing dataset.
-         label_col: Name of column to use as labels (should be 'y' or 'l').
+         label_col: Name of column to use as labels (should be 'y' or 't').
          add_intercept: Add an intercept entry to x-values.
 
     Returns:
@@ -60,7 +61,7 @@ def load_dataset(csv_path, label_col='y', add_intercept=False):
     return inputs, labels
 
 
-def plot(x, y, theta, save_path=None, correction=1.0):
+def plot(x, y, theta, theta2=None, save_path=None, correction=1.0):
     """Plot dataset and fitted logistic regression parameters.
     Args:
         x: Matrix of training examples, one per row.
@@ -80,11 +81,19 @@ def plot(x, y, theta, save_path=None, correction=1.0):
     x1 = np.arange(min(x[:, -2])-margin1, max(x[:, -2])+margin1, 0.01)
     x2 = -(theta[0] / theta[2] * correction + theta[1] / theta[2] * x1)
     plt.plot(x1, x2, c='red', linewidth=2)
+
+    if theta2 is not None:
+        x2_ =  -(theta2[0] / theta2[2] * correction + theta2[1] / theta2[2] * x1)
+        plt.plot(x1, x2_, c='black', linewidth=2)
+
     plt.xlim(x[:, -2].min()-margin1, x[:, -2].max()+margin1)
     plt.ylim(x[:, -1].min()-margin2, x[:, -1].max()+margin2)
 
     # Add labels and save to disk
     plt.xlabel('x1')
     plt.ylabel('x2')
+
+    plt.show()
+
     if save_path is not None:
         plt.savefig(save_path)

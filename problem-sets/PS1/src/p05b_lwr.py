@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.linalg as la
 import util
 
 from linear_model import LinearModel
@@ -18,10 +19,20 @@ def main(tau, train_path, eval_path):
 
     # *** START CODE HERE ***
     # Fit a LWR model
+    model = LocallyWeightedLinearRegression(tau)
+    model.fit(x_train, y_train)
+
     # Get MSE value on the validation set
+    x_eval, y_eval = util.load_dataset(eval_path, add_intercept=True)
+    y_pred = model.predict(x_eval)
+    print("MSE:", np.mean((y_eval - y_pred)**2))
+
     # Plot validation predictions on top of training set
-    # No need to save predictions
-    # Plot data
+    plt.figure()
+    plt.plot(x_train, y_train, 'go')
+    plt.plot(x_eval, y_pred, 'rx')
+    plt.show()
+
     # *** END CODE HERE ***
 
 
@@ -45,9 +56,11 @@ class LocallyWeightedLinearRegression(LinearModel):
 
         """
         # *** START CODE HERE ***
+        self.x = x
+        self.y = y
         # *** END CODE HERE ***
 
-    def predict(self, x):
+    def predict(self, x : np.ndarray):
         """Make predictions given inputs x.
 
         Args:
@@ -57,4 +70,17 @@ class LocallyWeightedLinearRegression(LinearModel):
             Outputs of shape (m,).
         """
         # *** START CODE HERE ***
+        m, n = x.shape
+        y_pred = np.zeros(m)
+
+        for i in range(m):
+            W = np.diag(np.exp(-np.sum((self.x - x[i]) ** 2, axis=1) / (2 * self.tau * self.tau)))
+            theta = la.inv(self.x.T @ W @ self.x) @ self.x.T @ W @ self.y
+            y_pred[i] = x[i] @ theta
+    
+        return y_pred
         # *** END CODE HERE ***
+
+
+if __name__ == '__main__':
+    main(0.5, "../data/ds5_train.csv", "../data/ds5_valid.csv")
