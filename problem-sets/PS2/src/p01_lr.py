@@ -22,7 +22,7 @@ def logistic_regression(X, Y):
     learning_rate = 10
 
     i = 0
-    while True:
+    while i < 1e5:
         i += 1
         prev_theta = theta
         grad = calc_grad(X, Y, theta)
@@ -32,6 +32,9 @@ def logistic_regression(X, Y):
         if np.linalg.norm(prev_theta - theta) < 1e-15:
             print('Converged in %d iterations' % i)
             break
+
+    util.plot(X, Y)
+
     return
 
 

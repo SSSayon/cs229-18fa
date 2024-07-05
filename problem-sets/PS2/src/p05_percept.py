@@ -16,6 +16,7 @@ def initial_state():
     """
 
     # *** START CODE HERE ***
+    return []
     # *** END CODE HERE ***
 
 
@@ -33,10 +34,11 @@ def predict(state, kernel, x_i):
         Returns the prediction (i.e 0 or 1)
     """
     # *** START CODE HERE ***
+    return sign(sum([beta_j * kernel(x_j, x_i) for (beta_j, x_j) in state]))
     # *** END CODE HERE ***
 
 
-def update_state(state, kernel, learning_rate, x_i, y_i):
+def update_state(state : list, kernel, learning_rate, x_i, y_i):
     """Updates the state of the perceptron.
 
     Args:
@@ -47,6 +49,8 @@ def update_state(state, kernel, learning_rate, x_i, y_i):
         y_i: A 0 or 1 indicating the label for a single instance
     """
     # *** START CODE HERE ***
+    beta_i = learning_rate * (y_i - predict(state, kernel, x_i))
+    state.append((beta_i, x_i))
     # *** END CODE HERE ***
 
 
@@ -106,11 +110,12 @@ def train_perceptron(kernel_name, kernel, learning_rate):
     plt.figure(figsize=(12, 8))
     util.plot_contour(lambda a: predict(state, kernel, a))
     util.plot_points(test_x, test_y)
-    plt.savefig('./output/p05_{}_output.pdf'.format(kernel_name))
+    plt.show()
+    # plt.savefig('./output/p05_{}_output.pdf'.format(kernel_name))
 
-    predict_y = [predict(state, kernel, test_x[i, :]) for i in range(test_y.shape[0])]
+    # predict_y = [predict(state, kernel, test_x[i, :]) for i in range(test_y.shape[0])]
 
-    np.savetxt('./output/p05_{}_predictions'.format(kernel_name), predict_y)
+    # np.savetxt('./output/p05_{}_predictions'.format(kernel_name), predict_y)
 
 
 def main():

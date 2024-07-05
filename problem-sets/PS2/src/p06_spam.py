@@ -1,4 +1,5 @@
 import collections
+from typing import List, Dict, Tuple
 
 import numpy as np
 
@@ -6,7 +7,7 @@ import util
 import svm
 
 
-def get_words(message):
+def get_words(message : str):
     """Get the normalized list of words from a message string.
 
     This function should split a message into words, normalize them, and return
@@ -21,10 +22,11 @@ def get_words(message):
     """
 
     # *** START CODE HERE ***
+    return message.lower().split(sep=' ')
     # *** END CODE HERE ***
 
 
-def create_dictionary(messages):
+def create_dictionary(messages : List[str]) -> Dict[str, int]:
     """Create a dictionary mapping words to integer indices.
 
     This function should create a dictionary of word to indices using the provided
@@ -41,10 +43,17 @@ def create_dictionary(messages):
     """
 
     # *** START CODE HERE ***
+    words = [word for message in messages for word in get_words(message)]
+
+    cnts = collections.Counter(words)
+
+    freq_words = [word for (word, cnt) in cnts.items() if cnt >= 5]
+
+    return {word : i for (i, word) in enumerate(freq_words)}
     # *** END CODE HERE ***
 
 
-def transform_text(messages, word_dictionary):
+def transform_text(messages : List[str], word_dictionary : Dict[str, int]) -> np.ndarray:
     """Transform a list of text messages into a numpy array for further processing.
 
     This function should create a numpy array that contains the number of times each word
@@ -62,10 +71,21 @@ def transform_text(messages, word_dictionary):
         A numpy array marking the words present in each message.
     """
     # *** START CODE HERE ***
+    m, n = len(messages), len(word_dictionary)
+    word_matrix = np.zeros((m, n), dtype=int)
+
+    for i, message in enumerate(messages):
+        cnts = collections.Counter(get_words(message))
+        for word, cnt in cnts.items():
+            if word in word_dictionary:
+
+                word_matrix[i][word_dictionary[word]] += cnt
+
+    return word_matrix
     # *** END CODE HERE ***
 
 
-def fit_naive_bayes_model(matrix, labels):
+def fit_naive_bayes_model(matrix : np.ndarray, labels : list) -> Tuple[float, np.ndarray, np.ndarray]:
     """Fit a naive bayes model.
 
     This function should fit a Naive Bayes model given a training matrix and labels.
@@ -82,10 +102,17 @@ def fit_naive_bayes_model(matrix, labels):
     """
 
     # *** START CODE HERE ***
+    n, num_words = matrix.shape
+    
+    phi_y1 = np.mean(labels)
+    phi_k_y1 = (np.sum(matrix[labels == 1], axis=0) + 1) / (np.sum(matrix[labels == 1]) + num_words)
+    phi_k_y0 = (np.sum(matrix[labels == 0], axis=0) + 1) / (np.sum(matrix[labels == 0]) + num_words)
+
+    return phi_y1, phi_k_y1, phi_k_y0
     # *** END CODE HERE ***
 
 
-def predict_from_naive_bayes_model(model, matrix):
+def predict_from_naive_bayes_model(model : Tuple[float, np.ndarray, np.ndarray], matrix : np.ndarray) -> np.ndarray:
     """Use a Naive Bayes model to compute predictions for a target matrix.
 
     This function should be able to predict on the models that fit_naive_bayes_model
@@ -98,10 +125,13 @@ def predict_from_naive_bayes_model(model, matrix):
     Returns: A numpy array containg the predictions from the model
     """
     # *** START CODE HERE ***
+    phi_y1, phi_k_y1, phi_k_y0 = model
+
+    return matrix @ (np.log(phi_k_y1) - np.log(phi_k_y0)) + np.log(phi_y1/(1 - phi_y1)) >= 0
     # *** END CODE HERE ***
 
 
-def get_top_five_naive_bayes_words(model, dictionary):
+def get_top_five_naive_bayes_words(model : Tuple[float, np.ndarray, np.ndarray], dictionary : Dict[str, int]) -> List[str]:
     """Compute the top five words that are most indicative of the spam (i.e positive) class.
 
     Ues the metric given in 6c as a measure of how indicative a word is.
@@ -114,6 +144,13 @@ def get_top_five_naive_bayes_words(model, dictionary):
     Returns: The top five most indicative words in sorted order with the most indicative first
     """
     # *** START CODE HERE ***
+    phi_y1, phi_k_y1, phi_k_y0 = model
+
+    top_5 = np.argsort(-np.log(phi_k_y1) + np.log(phi_k_y0))[:5]
+
+    inv_dict = {cnt : word for word, cnt in dictionary.items()}
+
+    return [inv_dict[i] for i in top_5]
     # *** END CODE HERE ***
 
 
@@ -134,6 +171,11 @@ def compute_best_svm_radius(train_matrix, train_labels, val_matrix, val_labels, 
         The best radius which maximizes SVM accuracy.
     """
     # *** START CODE HERE ***
+    return radius_to_consider[
+        np.argmax(
+            [np.mean(svm.train_and_predict_svm(train_matrix, train_labels, val_matrix, radius) - val_labels) for radius in radius_to_consider]
+        )
+    ]
     # *** END CODE HERE ***
 
 
