@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.linalg as la
 import os
 
 PLOT_COLORS = ['red', 'green', 'blue', 'orange']  # Colors for your plots
@@ -20,18 +21,36 @@ def main(is_semi_supervised, trial_num):
 
     if is_semi_supervised:
         # Split into labeled and unlabeled examples
-        labeled_idxs = (z != UNLABELED).squeeze()
+        labeled_idxs = (z != UNLABELED).squeeze()   
         x_tilde = x[labeled_idxs, :]   # Labeled examples
         z = z[labeled_idxs, :]         # Corresponding labels
         x = x[~labeled_idxs, :]        # Unlabeled examples
 
+    """
+        x: NumPy array shape (m, n)
+        z: NumPy array shape (m, 1)
+    """
+    x: np.ndarray
+    z: np.ndarray
     # *** START CODE HERE ***
+    m = x.shape[0]
     # (1) Initialize mu and sigma by splitting the m data points uniformly at random
     # into K groups, then calculating the sample mean and covariance for each group
+    rand_idx = np.random.permutation(m)
+    step = (m + K - 1) // K
+    mu = []
+    sigma = []
+    for k in range(K):
+        x_group = x[rand_idx[k*step : k*step + step], :]
+        mu_group = np.mean(x_group, axis=0) 
+        mu.append(mu_group)
+        sigma.append((x_group - mu_group).T @ (x_group - mu_group) / x_group.shape[0])
     # (2) Initialize phi to place equal probability on each Gaussian
     # phi should be a numpy array of shape (K,)
+    phi = np.ones(K) / K
     # (3) Initialize the w values to place equal probability on each Gaussian
     # w should be a numpy array of shape (m, K)
+    w = np.ones((m, K)) / K
     # *** END CODE HERE ***
 
     if is_semi_supervised:
@@ -48,7 +67,7 @@ def main(is_semi_supervised, trial_num):
     plot_gmm_preds(x, z_pred, is_semi_supervised, plot_id=trial_num)
 
 
-def run_em(x, w, phi, mu, sigma):
+def run_em(x: np.ndarray, w: np.ndarray, phi, mu, sigma):
     """Problem 3(d): EM Algorithm (unsupervised).
 
     See inline comments for instructions.
@@ -74,20 +93,34 @@ def run_em(x, w, phi, mu, sigma):
     it = 0
     ll = prev_ll = None
     while it < max_iter and (prev_ll is None or np.abs(ll - prev_ll) >= eps):
-        pass  # Just a placeholder for the starter code
         # *** START CODE HERE
+        def calc_gaussian(phi_k, mu_k, sigma_k):
+            return np.exp(-0.5 * np.sum((x - mu_k) @ la.inv(sigma_k) * (x - mu_k), axis=1)) * phi_k / (la.det(sigma_k) ** 0.5)
         # (1) E-step: Update your estimates in w
+        for k in range(K):
+            w[:, k] = calc_gaussian(phi[k], mu[k], sigma[k])
+        w = w / np.sum(w, axis=1, keepdims=True)
         # (2) M-step: Update the model parameters phi, mu, and sigma
+        phi = np.mean(w, axis=0)
+        for k in range(K):
+            mu[k] = x.T @ w[:, k] / np.sum(w[:, k])
+            sigma[k] = ((x - mu[k]) * w[:, k][:, None]).T @ (x - mu[k]) / np.sum(w[:, k])
         # (3) Compute the log-likelihood of the data to check for convergence.
         # By log-likelihood, we mean `ll = sum_x[log(sum_z[p(x|z) * p(z)])]`.
         # We define convergence by the first iteration where abs(ll - prev_ll) < eps.
+        prev_ll = ll
+        p_xz = np.zeros_like(w)
+        for k in range(K):
+            p_xz[:, k] = calc_gaussian(phi[k], mu[k], sigma[k])
+        ll = np.sum(np.log(np.sum(p_xz, axis=1)))
+        it += 1
         # Hint: For debugging, recall part (a). We showed that ll should be monotonically increasing.
         # *** END CODE HERE ***
-
+    print(f'iteration: {it}')
     return w
 
 
-def run_semi_supervised_em(x, x_tilde, z, w, phi, mu, sigma):
+def run_semi_supervised_em(x: np.ndarray, x_tilde: np.ndarray, z: np.ndarray, w: np.ndarray, phi, mu, sigma):
     """Problem 3(e): Semi-Supervised EM Algorithm.
 
     See inline comments for instructions.
@@ -111,20 +144,38 @@ def run_semi_supervised_em(x, x_tilde, z, w, phi, mu, sigma):
     eps = 1e-3   # Convergence threshold
     max_iter = 1000
 
+    m, m_tilde = x.shape[0], x_tilde.shape[0]
+    z = z.squeeze()
+
     # Stop when the absolute change in log-likelihood is < eps
     # See below for explanation of the convergence criterion
     it = 0
     ll = prev_ll = None
     while it < max_iter and (prev_ll is None or np.abs(ll - prev_ll) >= eps):
-        pass  # Just a placeholder for the starter code
-        # *** START CODE HERE ***
+        # *** START CODE HERE
+        def calc_gaussian(phi_k, mu_k, sigma_k):
+            return np.exp(-0.5 * np.sum((x - mu_k) @ la.inv(sigma_k) * (x - mu_k), axis=1)) * phi_k / (la.det(sigma_k) ** 0.5)
         # (1) E-step: Update your estimates in w
+        for k in range(K):
+            w[:, k] = calc_gaussian(phi[k], mu[k], sigma[k])
+        w = w / np.sum(w, axis=1, keepdims=True)
         # (2) M-step: Update the model parameters phi, mu, and sigma
+        for k in range(K):
+            phi[k] = (np.sum(w[:, k]) + alpha * np.sum(z == k)) / (m + alpha * m_tilde)
+            mu[k] = (x.T @ w[:, k] + alpha * x_tilde.T @ (z == k)) / (np.sum(w[:, k]) + alpha * np.sum(z == k))
+            sigma[k] = (((x - mu[k]) * w[:, k][:, None]).T @ (x - mu[k]) 
+              + alpha * ((x_tilde - mu[k]) * (z == k)[:, None]).T @ (x_tilde - mu[k])) / (np.sum(w[:, k]) + alpha * np.sum(z == k))
         # (3) Compute the log-likelihood of the data to check for convergence.
+        prev_ll = ll
+        p_xz = np.zeros_like(w)
+        for k in range(K):
+            p_xz[:, k] = calc_gaussian(phi[k], mu[k], sigma[k])
+        ll = np.sum(np.log(np.sum(p_xz, axis=1)))
+        it += 1
         # Hint: Make sure to include alpha in your calculation of ll.
         # Hint: For debugging, recall part (a). We showed that ll should be monotonically increasing.
         # *** END CODE HERE ***
-
+    print(f'iteration: {it}')
     return w
 
 
@@ -197,5 +248,5 @@ if __name__ == '__main__':
         # Once you've implemented the semi-supervised version,
         # uncomment the following line.
         # You do not need to add any other lines in this code block.
-        # main(with_supervision=True, trial_num=t)
+        main(is_semi_supervised=True, trial_num=t)
         # *** END CODE HERE ***

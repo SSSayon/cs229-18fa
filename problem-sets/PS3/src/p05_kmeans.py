@@ -4,13 +4,12 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import random
 
 
-def init_centroids(num_clusters, image):
+def init_centroids(num_clusters: int, image: np.ndarray) -> np.ndarray:
     """
     Initialize a `num_clusters` x image_shape[-1] nparray to RGB
-    values of randomly chosen pixels of`image`
+    values of randomly chosen pixels of `image`
 
     Parameters
     ----------
@@ -26,13 +25,13 @@ def init_centroids(num_clusters, image):
     """
 
     # *** START YOUR CODE ***
-    raise NotImplementedError('init_centroids function not implemented')
+    flat_image = image.reshape(-1, image.shape[-1])
+    rand_idx = np.random.choice(flat_image.shape[0], size=num_clusters)
+    return flat_image[rand_idx]
     # *** END YOUR CODE ***
 
-    return centroids_init
 
-
-def update_centroids(centroids, image, max_iter=30, print_every=10):
+def update_centroids(centroids: np.ndarray, image: np.ndarray, max_iter=30, print_every=10) -> np.ndarray:
     """
     Carry out k-means centroid update step `max_iter` times
 
@@ -54,12 +53,36 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
     """
 
     # *** START YOUR CODE ***
-    raise NotImplementedError('update_centroids function not implemented')
-        # Usually expected to converge long before `max_iter` iterations
-                # Initialize `dist` vector to keep track of distance to every centroid
-                # Loop over all centroids and store distances in `dist`
-                # Find closest centroid and update `new_centroids`
-        # Update `new_centroids`
+    # Usually expected to converge long before `max_iter` iterations
+    # Initialize `dist` vector to keep track of distance to every centroid
+    # Loop over all centroids and store distances in `dist`
+    # Find closest centroid and update `new_centroids`
+    # Update `new_centroids`
+    H, W, _ = image.shape
+    num_clusters = centroids.shape[0]
+    centroids = centroids.astype(float)
+    new_centroids = np.copy(centroids)
+    it = 0
+    idx = np.zeros((H, W), dtype=int)
+
+    for it in range(max_iter):
+
+        for i in range(H):
+            for j in range(W):
+                idx[i, j] = np.argmin(np.linalg.norm(image[i, j] - centroids, axis=1))
+
+        for k in range(num_clusters):
+            new_centroids[k] = np.mean(image[idx == k], axis=0) if np.any(idx == k) else centroids[k]
+        
+        if it % print_every == 0:
+            loss = 0
+            for i in range(H):
+                for j in range(W):
+                    loss += np.linalg.norm(new_centroids[idx[i, j]] - image[i, j]) ** 2
+            loss /= (H * W)
+            print(f"iteration: {it}, loss: {loss}")
+
+        centroids = np.copy(new_centroids)
 
     # *** END YOUR CODE ***
 
@@ -85,11 +108,13 @@ def update_image(image, centroids):
     """
 
     # *** START YOUR CODE ***
-    raise NotImplementedError('update_image function not implemented')
-            # Initialize `dist` vector to keep track of distance to every centroid
-            # Loop over all centroids and store distances in `dist`
-            # Find closest centroid and update pixel value in `image`
-
+    # Initialize `dist` vector to keep track of distance to every centroid
+    # Loop over all centroids and store distances in `dist`
+    # Find closest centroid and update pixel value in `image`
+    H, W, _ = image.shape
+    for i in range(H):
+        for j in range(W):
+            image[i, j] = centroids[np.argmin(np.linalg.norm(image[i, j] - centroids, axis=1))].astype(int)
     # *** END YOUR CODE ***
 
     return image
@@ -113,7 +138,7 @@ def main(args):
     plt.imshow(image)
     plt.title('Original small image')
     plt.axis('off')
-    savepath = os.path.join('.', 'orig_small.png')
+    savepath = os.path.join('../src/output', 'orig_small.png')
     plt.savefig(savepath, transparent=True, format='png', bbox_inches='tight')
 
     # Initialize centroids
@@ -135,7 +160,7 @@ def main(args):
     plt.imshow(image)
     plt.title('Original large image')
     plt.axis('off')
-    savepath = os.path.join('.', 'orig_large.png')
+    savepath = os.path.join('../src/output', 'orig_large.png')
     plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
 
     # Update large image with centroids calculated on small image
@@ -149,7 +174,7 @@ def main(args):
     plt.imshow(image_clustered)
     plt.title('Updated large image')
     plt.axis('off')
-    savepath = os.path.join('.', 'updated_large.png')
+    savepath = os.path.join('../src/output', 'updated_large.png')
     plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
 
     print('\nCOMPLETE')
@@ -157,10 +182,11 @@ def main(args):
 
 
 if __name__ == '__main__':
+    np.random.seed(229)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--small_path', default='./peppers-small.tiff',
+    parser.add_argument('--small_path', default='../data/peppers-small.tiff',
                         help='Path to small image')
-    parser.add_argument('--large_path', default='./peppers-large.tiff',
+    parser.add_argument('--large_path', default='../data/peppers-large.tiff',
                         help='Path to large image')
     parser.add_argument('--max_iter', type=int, default=150,
                         help='Maximum number of iterations')
