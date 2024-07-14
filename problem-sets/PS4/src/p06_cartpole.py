@@ -125,6 +125,9 @@ def choose_action(state, mdp_data):
     """
 
     # *** START CODE HERE ***
+    return np.argmax(
+        mdp_data['value'] @ mdp_data['transition_probs'][state]
+    )
     # *** END CODE HERE ***
 
 def update_mdp_transition_counts_reward_counts(mdp_data, state, action, new_state, reward):
@@ -149,6 +152,9 @@ def update_mdp_transition_counts_reward_counts(mdp_data, state, action, new_stat
     """
 
     # *** START CODE HERE ***
+    mdp_data['transition_counts'][state, new_state, action] += 1
+    mdp_data['reward_counts'][state, 1] += 1
+    mdp_data['reward_counts'][state, 0] -= reward # plus one only when reward == -1
     # *** END CODE HERE ***
 
     # This function does not return anything
@@ -172,6 +178,14 @@ def update_mdp_transition_probs_reward(mdp_data):
     """
 
     # *** START CODE HERE ***
+    sum_transition_counts = mdp_data['transition_counts'].sum(axis=1)
+    for state in range(mdp_data['num_states']):
+        for action in range(2):
+            if sum_transition_counts[state, action] != 0:
+                mdp_data['transition_probs'][state, :, action] = mdp_data['transition_counts'][state, :, action] / sum_transition_counts[state, action]
+        
+        if mdp_data['reward_counts'][state, 1] != 0:
+            mdp_data['reward'][state] = - mdp_data['reward_counts'][state, 0] / mdp_data['reward_counts'][state, 1]
     # *** END CODE HERE ***
 
     # This function does not return anything
@@ -198,11 +212,23 @@ def update_mdp_value(mdp_data, tolerance, gamma):
     """
 
     # *** START CODE HERE ***
+    it = 1
+    while True:
+        prev_value = mdp_data['value']
+
+        mdp_data['value'] = mdp_data['reward'] + gamma * np.max(prev_value @ mdp_data['transition_probs'], axis=1)
+
+        if np.linalg.norm(prev_value - mdp_data['value'], ord=np.inf) < tolerance:
+            break
+
+        it += 1
+
+    return it == 1
     # *** END CODE HERE ***
 
 def main(plot=True):
     # Seed the randomness of the simulation so this outputs the same thing each time
-    seed = 0
+    seed = 3
     np.random.seed(seed)
 
     # Simulation parameters

@@ -1,9 +1,8 @@
 import numpy as np
 import scipy.io.wavfile
 import os
-import numpy as np
 
-def update_W(W, x, learning_rate):
+def update_W(W: np.ndarray, x: np.ndarray, learning_rate):
     """
     Perform a gradient ascent update on W using data element x and the provided learning rate.
 
@@ -21,12 +20,10 @@ def update_W(W, x, learning_rate):
     """
     
     # *** START CODE HERE ***
+    return W + learning_rate * (np.linalg.inv(W.T) - np.outer(np.sign(W @ x), x.T))
     # *** END CODE HERE ***
 
-    return updated_W
-
-
-def unmix(X, W):
+def unmix(X: np.ndarray, W: np.ndarray):
     """
     Unmix an X matrix according to W using ICA.
 
@@ -38,13 +35,9 @@ def unmix(X, W):
         A numpy array S containing the split data
     """
 
-    S = np.zeros(X.shape)
-
-
     # *** START CODE HERE ***
+    return (W @ X.T).T
     # *** END CODE HERE ***
-
-    return S
 
 
 Fs = 11025
